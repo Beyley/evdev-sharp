@@ -1,6 +1,6 @@
-namespace EvDevSharp;
+namespace EvDevSharp.EventArgs;
 
-public class EvDevEventArgs : EventArgs {
+public class EvDevEventArgs : System.EventArgs {
 	public EvDevEventArgs(int code, int value) {
 		(this.Code, this.Value) = (code, value);
 	}

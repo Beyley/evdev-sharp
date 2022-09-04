@@ -1,24 +1,27 @@
+using EvDevSharp.Enums;
+// ReSharper disable UnusedMember.Local
+
 namespace EvDevSharp;
 
 internal static class IoCtlRequest {
-	private const int _IOC_SIZEBITS = 14;
-	private const int _IOC_DIRBITS  = 2;
-	private const int _IOC_NRBITS   = 8;
-	private const int _IOC_TYPEBITS = 8;
+	private const int IocSizebits = 14;
+	private const int IocDirbits  = 2;
+	private const int IocNrbits   = 8;
+	private const int IocTypebits = 8;
 
-	private const int _IOC_NRMASK   = (1 << _IOC_NRBITS)   - 1;
-	private const int _IOC_TYPEMASK = (1 << _IOC_TYPEBITS) - 1;
-	private const int _IOC_SIZEMASK = (1 << _IOC_SIZEBITS) - 1;
-	private const int _IOC_DIRMASK  = (1 << _IOC_DIRBITS)  - 1;
+	private const int IocNrmask   = (1 << IocNrbits)   - 1;
+	private const int IocTypemask = (1 << IocTypebits) - 1;
+	private const int IocSizemask = (1 << IocSizebits) - 1;
+	private const int IocDirmask  = (1 << IocDirbits)  - 1;
 
-	private const int _IOC_NRSHIFT   = 0;
-	private const int _IOC_TYPESHIFT = _IOC_NRSHIFT   + _IOC_NRBITS;
-	private const int _IOC_SIZESHIFT = _IOC_TYPESHIFT + _IOC_TYPEBITS;
-	private const int _IOC_DIRSHIFT  = _IOC_SIZESHIFT + _IOC_SIZEBITS;
+	private const int IocNrshift   = 0;
+	private const int IocTypeshift = IocNrshift   + IocNrbits;
+	private const int IocSizeshift = IocTypeshift + IocTypebits;
+	private const int IocDirshift  = IocSizeshift + IocSizebits;
 
-	private const int _IOC_NONE  = 0;
-	private const int _IOC_WRITE = 1;
-	private const int _IOC_READ  = 2;
+	private const int IocNone  = 0;
+	private const int IocWrite = 1;
+	private const int IocRead  = 2;
 
 	public const uint EVIOCGVERSION    = 2147763457;
 	public const uint EVIOCGID         = 2148025602;
@@ -31,38 +34,38 @@ internal static class IoCtlRequest {
 
 
 	private static uint _IOC(long dir, long type, long nr, long size) {
-		return (uint)(dir  << _IOC_DIRSHIFT  |
-		              type << _IOC_TYPESHIFT |
-		              nr   << _IOC_NRSHIFT   |
-		              size << _IOC_SIZESHIFT);
+		return (uint)(dir  << IocDirshift  |
+		              type << IocTypeshift |
+		              nr   << IocNrshift   |
+		              size << IocSizeshift);
 	}
 
 	private static uint _IO(long type, long nr) {
-		return _IOC(_IOC_NONE, type, nr, 0);
+		return _IOC(IocNone, type, nr, 0);
 	}
 	private static uint _IOR(long type, long nr, long size) {
-		return _IOC(_IOC_READ, type, nr, size);
+		return _IOC(IocRead, type, nr, size);
 	}
 	private static uint _IOW(long type, long nr, long size) {
-		return _IOC(_IOC_WRITE, type, nr, size);
+		return _IOC(IocWrite, type, nr, size);
 	}
 
-	public static uint EVIOCGNAME(long len) {
-		return _IOC(_IOC_READ, 'E', 0x06, len);
+	public static uint Eviocgname(long len) {
+		return _IOC(IocRead, 'E', 0x06, len);
 	}
-	public static uint EVIOCGPHYS(long len) {
-		return _IOC(_IOC_READ, 'E', 0x07, len);
+	public static uint Eviocgphys(long len) {
+		return _IOC(IocRead, 'E', 0x07, len);
 	}
-	public static uint EVIOCGUNIQ(long len) {
-		return _IOC(_IOC_READ, 'E', 0x08, len);
+	public static uint Eviocguniq(long len) {
+		return _IOC(IocRead, 'E', 0x08, len);
 	}
-	public static uint EVIOCGPROP(long len) {
-		return _IOC(_IOC_READ, 'E', 0x09, len);
+	public static uint Eviocgprop(long len) {
+		return _IOC(IocRead, 'E', 0x09, len);
 	}
-	public static uint EVIOCGBIT(EvDevEventType ev, long len) {
-		return _IOC(_IOC_READ, 'E', 0x20 + (long)ev, len);
+	public static uint Eviocgbit(EvDevEventType ev, long len) {
+		return _IOC(IocRead, 'E', 0x20 + (long)ev, len);
 	}
-	public static uint EVIOCGABS(int abs) {
+	public static uint Eviocgabs(int abs) {
 		return _IOR('E', 0x40 + abs, 24);
 	}
 }

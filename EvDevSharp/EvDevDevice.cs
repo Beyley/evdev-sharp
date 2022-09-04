@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using EvDevSharp.Enums;
 using EvDevSharp.InteropStructs;
 using static EvDevSharp.IoCtlRequest;
 
@@ -11,7 +12,7 @@ public sealed unsafe partial class EvDevDevice : IDisposable {
 
 	private EvDevDevice(string path) {
 		using FileStream eventFile = File.OpenRead(path);
-		IntPtr           fd        = eventFile.SafeFileHandle.DangerousGetHandle();
+		IntPtr           fd        = eventFile.SafeFileHandle!.DangerousGetHandle();
 
 		this.DevicePath = path;
 
@@ -34,48 +35,51 @@ public sealed unsafe partial class EvDevDevice : IDisposable {
 		};
 
 		byte* str = stackalloc byte[256];
-		if (ioctl(fd, EVIOCGNAME(256), str) == -1)
+		if (ioctl(fd, Eviocgname(256), str) == -1)
 			throw new Win32Exception($"Unable to get evdev name for {path}");
 
 		this.Name = Marshal.PtrToStringAnsi(new IntPtr(str));
 
+		//TODO: figure out why this is commented out
 		// if (ioctl(fd, new CULong(EVIOCGUNIQ(256)), str) == -1)
 		//     throw new Win32Exception($"Unable to get evdev unique ID for {path}");
 
 		// UniqueId = Marshal.PtrToStringAnsi(new IntPtr(str));
 
-		int    bitCount = (int)EvDevKeyCode.KEY_MAX;
-		byte[] bits     = new byte[bitCount / 8 + 1];
+		this.UniqueId = "Unknown";
+		
+		const int bitCount = (int)EvDevKeyCode.KeyMax;
+		byte[]    bits     = new byte[bitCount / 8 + 1];
 
-		ioctl(fd, EVIOCGBIT(EvDevEventType.EV_SYN, bitCount), bits);
+		ioctl(fd, Eviocgbit(EvDevEventType.EvSyn, bitCount), bits);
 		List<EvDevEventType> supportedEvents = DecodeBits(bits).Cast<EvDevEventType>().ToList();
 		foreach (EvDevEventType evType in supportedEvents) {
-			if (evType == EvDevEventType.EV_SYN)
+			if (evType == EvDevEventType.EvSyn)
 				continue;
 
 			Array.Clear(bits, 0, bits.Length);
-			ioctl(fd, EVIOCGBIT(evType, bitCount), bits);
+			ioctl(fd, Eviocgbit(evType, bitCount), bits);
 			this.RawEventCodes[evType] = DecodeBits(bits);
 		}
 
-		if (this.RawEventCodes.TryGetValue(EvDevEventType.EV_KEY, out List<int>? keys))
+		if (this.RawEventCodes.TryGetValue(EvDevEventType.EvKey, out List<int>? keys))
 			this.Keys = keys.Cast<EvDevKeyCode>().ToList();
 
-		if (this.RawEventCodes.TryGetValue(EvDevEventType.EV_REL, out List<int>? rel))
+		if (this.RawEventCodes.TryGetValue(EvDevEventType.EvRel, out List<int>? rel))
 			this.RelativeAxises = rel.Cast<EvDevRelativeAxisCode>().ToList();
 
-		if (this.RawEventCodes.TryGetValue(EvDevEventType.EV_ABS, out List<int>? abs))
+		if (this.RawEventCodes.TryGetValue(EvDevEventType.EvAbs, out List<int>? abs))
 			this.AbsoluteAxises = abs.ToDictionary(
 				x => (EvDevAbsoluteAxisCode)x,
 				x => {
 					EvDevAbsAxisInfo absInfo = default;
-					ioctl(fd, EVIOCGABS(x), &absInfo);
+					ioctl(fd, Eviocgabs(x), &absInfo);
 					return absInfo;
 				});
 
 		Array.Clear(bits, 0, bits.Length);
-		ioctl(fd, EVIOCGPROP((int)EvDevProperty.INPUT_PROP_CNT), bits);
-		this.Properties = DecodeBits(bits, (int)EvDevProperty.INPUT_PROP_CNT).Cast<EvDevProperty>().ToList();
+		ioctl(fd, Eviocgprop((int)EvDevProperty.InputPropCnt), bits);
+		this.Properties = DecodeBits(bits, (int)EvDevProperty.InputPropCnt).Cast<EvDevProperty>().ToList();
 
 		this.GuessedDeviceType = this.GuessDeviceType();
 	}
@@ -110,22 +114,22 @@ public sealed unsafe partial class EvDevDevice : IDisposable {
 	private EvDevGuessedDeviceType GuessDeviceType() {
 		if (this.Name != null) {
 			// Often device name says what it is
-			bool isAbsolutePointingDevice = this.AbsoluteAxises?.ContainsKey(EvDevAbsoluteAxisCode.ABS_X) == true;
+			bool isAbsolutePointingDevice = this.AbsoluteAxises?.ContainsKey(EvDevAbsoluteAxisCode.AbsX) == true;
 
 			string n = this.Name.ToLowerInvariant();
 			if (n.Contains("touchscreen")
 			    && isAbsolutePointingDevice
-			    && this.Keys?.Contains(EvDevKeyCode.BTN_TOUCH) == true)
+			    && this.Keys?.Contains(EvDevKeyCode.BtnTouch) == true)
 				return EvDevGuessedDeviceType.TouchScreen;
 
 			if (n.Contains("tablet")
 			    && isAbsolutePointingDevice
-			    && this.Keys?.Contains(EvDevKeyCode.BTN_LEFT) == true)
+			    && this.Keys?.Contains(EvDevKeyCode.BtnLeft) == true)
 				return EvDevGuessedDeviceType.Tablet;
 
 			if (n.Contains("touchpad")
 			    && isAbsolutePointingDevice
-			    && this.Keys?.Contains(EvDevKeyCode.BTN_LEFT) == true)
+			    && this.Keys?.Contains(EvDevKeyCode.BtnLeft) == true)
 				return EvDevGuessedDeviceType.TouchPad;
 
 			if (n.Contains("keyboard")
@@ -137,23 +141,23 @@ public sealed unsafe partial class EvDevDevice : IDisposable {
 				return EvDevGuessedDeviceType.GamePad;
 		}
 
-		if (this.Keys?.Contains(EvDevKeyCode.BTN_TOUCH) == true
-		    && this.Properties.Contains(EvDevProperty.INPUT_PROP_DIRECT))
+		if (this.Keys?.Contains(EvDevKeyCode.BtnTouch) == true
+		    && this.Properties.Contains(EvDevProperty.InputPropDirect))
 			return EvDevGuessedDeviceType.TouchScreen;
 
-		if (this.Keys?.Contains(EvDevKeyCode.BTN_SOUTH) == true)
+		if (this.Keys?.Contains(EvDevKeyCode.BtnSouth) == true)
 			return EvDevGuessedDeviceType.GamePad;
 
-		if (this.Keys?.Contains(EvDevKeyCode.BTN_LEFT) == true && this.Keys?.Contains(EvDevKeyCode.BTN_RIGHT) == true) {
+		if (this.Keys?.Contains(EvDevKeyCode.BtnLeft) == true && this.Keys?.Contains(EvDevKeyCode.BtnRight) == true) {
 			if (this.AbsoluteAxises != null)
-				if (this.AbsoluteAxises?.ContainsKey(EvDevAbsoluteAxisCode.ABS_X) == true) {
-					if (this.Properties.Contains(EvDevProperty.INPUT_PROP_DIRECT))
+				if (this.AbsoluteAxises?.ContainsKey(EvDevAbsoluteAxisCode.AbsX) == true) {
+					if (this.Properties.Contains(EvDevProperty.InputPropDirect))
 						return EvDevGuessedDeviceType.Tablet;
 
 					return EvDevGuessedDeviceType.TouchPad;
 				}
 
-			if (this.RelativeAxises?.Contains(EvDevRelativeAxisCode.REL_X) == true && this.RelativeAxises.Contains(EvDevRelativeAxisCode.REL_Y))
+			if (this.RelativeAxises?.Contains(EvDevRelativeAxisCode.RelX) == true && this.RelativeAxises.Contains(EvDevRelativeAxisCode.RelY))
 				return EvDevGuessedDeviceType.Mouse;
 		}
 

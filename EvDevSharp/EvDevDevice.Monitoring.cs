@@ -1,11 +1,13 @@
 using System.Runtime.InteropServices;
+using EvDevSharp.Enums;
+using EvDevSharp.EventArgs;
 using EvDevSharp.InteropStructs;
 
 namespace EvDevSharp;
 
-public sealed partial class EvDevDevice : IDisposable {
-	private CancellationTokenSource? cts;
-	private Task?                    monitoringTask;
+public sealed partial class EvDevDevice {
+	private CancellationTokenSource? _cts;
+	private Task?                    _monitoringTask;
 
 	public void Dispose() {
 		this.StopMonitoring();
@@ -15,11 +17,11 @@ public sealed partial class EvDevDevice : IDisposable {
 	///     This method starts to read the device's event file on a separate thread and will raise events accordingly.
 	/// </summary>
 	public void StartMonitoring() {
-		if (this.cts is not null && !this.cts.IsCancellationRequested)
+		if (this._cts is not null && !this._cts.IsCancellationRequested)
 			return;
 
-		this.cts            = new CancellationTokenSource();
-		this.monitoringTask = Task.Run(Monitor);
+		this._cts            = new CancellationTokenSource();
+		this._monitoringTask = Task.Run(Monitor);
 
 		void Monitor() {
 			InputEvent inputEvent;
@@ -28,56 +30,56 @@ public sealed partial class EvDevDevice : IDisposable {
 
 			GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
 
-			using FileStream? eventFile = File.OpenRead(this.DevicePath);
-			while (!this.cts.Token.IsCancellationRequested) {
-				eventFile.Read(buffer, 0, size);
+			using FileStream eventFile = File.OpenRead(this.DevicePath);
+			while (!this._cts.Token.IsCancellationRequested) {
+				_ = eventFile.Read(buffer, 0, size);
 				inputEvent = (InputEvent)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(InputEvent))!;
 				switch ((EvDevEventType)inputEvent.type) {
-					case EvDevEventType.EV_SYN:
+					case EvDevEventType.EvSyn:
 						OnSynEvent?.Invoke(this, new OnSynEventArgs((EvDevSynCode)inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_KEY:
+					case EvDevEventType.EvKey:
 						OnKeyEvent?.Invoke(this, new OnKeyEventArgs((EvDevKeyCode)inputEvent.code, (EvDevKeyValue)inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_REL:
+					case EvDevEventType.EvRel:
 						OnRelativeEvent?.Invoke(this, new OnRelativeEventArgs((EvDevRelativeAxisCode)inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_ABS:
+					case EvDevEventType.EvAbs:
 						OnAbsoluteEvent?.Invoke(this, new OnAbsoluteEventArgs((EvDevAbsoluteAxisCode)inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_MSC:
+					case EvDevEventType.EvMsc:
 						OnMiscellaneousEvent?.Invoke(this, new EvDevEventArgs(inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_SW:
+					case EvDevEventType.EvSw:
 						OnSwitchEvent?.Invoke(this, new EvDevEventArgs(inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_LED:
+					case EvDevEventType.EvLed:
 						OnLedEvent?.Invoke(this, new EvDevEventArgs(inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_SND:
+					case EvDevEventType.EvSnd:
 						OnSoundEvent?.Invoke(this, new EvDevEventArgs(inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_REP:
+					case EvDevEventType.EvRep:
 						OnAutoRepeatEvent?.Invoke(this, new EvDevEventArgs(inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_FF:
+					case EvDevEventType.EvFf:
 						OnForceFeedbackEvent?.Invoke(this, new EvDevEventArgs(inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_PWR:
+					case EvDevEventType.EvPwr:
 						OnPowerEvent?.Invoke(this, new EvDevEventArgs(inputEvent.code, inputEvent.value));
 						break;
 
-					case EvDevEventType.EV_FF_STATUS:
+					case EvDevEventType.EvFfStatus:
 						OnForceFeedbackStatusEvent?.Invoke(this, new EvDevEventArgs(inputEvent.code, inputEvent.value));
 						break;
 				}
@@ -91,8 +93,8 @@ public sealed partial class EvDevDevice : IDisposable {
 	///     This method cancels event file reading for this device.
 	/// </summary>
 	public void StopMonitoring() {
-		this.cts?.Cancel();
-		this.monitoringTask?.Wait();
+		this._cts?.Cancel();
+		this._monitoringTask?.Wait();
 	}
 
 	~EvDevDevice() {

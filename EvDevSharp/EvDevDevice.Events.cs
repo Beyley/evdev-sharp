@@ -1,6 +1,8 @@
+using EvDevSharp.EventArgs;
+
 namespace EvDevSharp;
 
-public sealed partial class EvDevDevice : IDisposable {
+public sealed partial class EvDevDevice {
 	public delegate void OnAbsoluteEventHandler(object sender, OnAbsoluteEventArgs e);
 
 	public delegate void OnAutoRepeatEventHandler(object sender, EvDevEventArgs e);
