@@ -1,11 +1,11 @@
 namespace EvDevSharp.Enums;
 
 public enum EvDevGuessedDeviceType {
-	Unknown,
-	Keyboard,
-	Mouse,
-	TouchPad,
-	TouchScreen,
-	Tablet,
-	GamePad
+    Unknown,
+    Keyboard,
+    Mouse,
+    TouchPad,
+    TouchScreen,
+    Tablet,
+    GamePad
 }
